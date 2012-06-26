@@ -15,6 +15,7 @@ def exist_ngword?(ngwords, text)
   return false
 end
 
+ERROR_HATEBUNG_MSG = "はてブ禁止でした"
 ERROR_IPADDR_MSG = "IPアドレスははてブしない"
 ERROR_NGWORD_MSG = "NGワードだったのではてブしない"
 ERROR_SITE_MSG = "サイトが見つからないのではてブしない"
@@ -31,10 +32,17 @@ loop do
       next if body['type'] != 'message'
 
       message = body['message']
+      mes = message['body'].tr('　', ' ') # 全角スペース撲滅
 
       # notice確認
 #      next if message['notice'] != false
 
+      # はてブ禁止だったら抜ける
+      if mes =~ /.*!.*/ then
+        p ERROR_HATEBUNG_MSG
+        next
+      end
+      
       # NGワードだったら抜ける
       if exist_ngword?(setting['ngword'], message['body']) then
         p ERROR_NGWORD_MSG
@@ -42,7 +50,7 @@ loop do
         next
       end
 
-      if message['body'] =~ /((http|https):\/\/\S+)\s*/ then
+      if mes =~ /((http|https):\/\/\S+)\s*/ then
         url = URI.encode($1)
         host = URI.parse(url).host
 
@@ -67,7 +75,7 @@ loop do
           #s.post_comment(message['channel_name'], ERROR_SITE_MSG)
           next
         end
-
+        
         # はてブする
         success, link = post_hatebu(setting["oauth"], url)
         if success then
