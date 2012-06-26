@@ -1,3 +1,8 @@
 
 config.yaml
 /nbproject/private/
+nbproject/project.properties
+
+nbproject/project.xml
+
+hatebubot.rb.pid

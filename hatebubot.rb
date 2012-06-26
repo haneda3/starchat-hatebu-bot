@@ -1,6 +1,6 @@
 # encoding: utf-8
-require '../starchat-api-client/starchatapiclient'
-require './hatebu'
+require File.dirname(__FILE__) + '/../starchat-api-client/starchatapiclient'
+require File.dirname(__FILE__) + '/hatebu'
 require 'yaml'
 require 'mechanize'
 require 'uri'
@@ -21,52 +21,61 @@ ERROR_SITE_MSG = "サイトが見つからないのではてブしない"
 TITLE_MSG = "【タイトル】"
 SUCCESS_MSG = "【はてブした】"
 
-setting = YAML.load_file('./config.yaml')
+setting = YAML.load_file(File.dirname(__FILE__) + '/config.yaml')
 
 s = StarChatApiClient.new(setting['host'], setting['username'], setting['password'])
 
-s.get_stream do |body|
-  next if body['type'] != 'message'
+loop do
+  begin
+    s.get_stream do |body|
+      next if body['type'] != 'message'
 
-  message = body['message']
+      message = body['message']
 
-  # notice確認
-  next if message['notice'] != false
+      # notice確認
+#      next if message['notice'] != false
 
-  if message['body'] =~ /((http|https):\/\/\S+)\s*/ then
-    url = URI.encode($1)
-    host = URI.parse(url).host
-    
-    begin
-      # IPアドレスだったら抜ける
-      IPAddr.new(host)
-      s.post_comment(message['channel_name'], ERROR_IPADDR_MSG)
-      next
-    rescue ArgumentError
+      # NGワードだったら抜ける
+      if exist_ngword?(setting['ngword'], message['body']) then
+        p ERROR_NGWORD_MSG
+          #s.post_comment(message['channel_name'], ERROR_NGWORD_MSG)
+        next
+      end
+
+      if message['body'] =~ /((http|https):\/\/\S+)\s*/ then
+        url = URI.encode($1)
+        host = URI.parse(url).host
+
+        begin
+          # IPアドレスだったら抜ける
+          IPAddr.new(host)
+          p ERROR_IPADDR_MSG
+          #s.post_comment(message['channel_name'], ERROR_IPADDR_MSG)
+          next
+        rescue ArgumentError
+        end
+
+        # 取得できないサイトだったら抜ける
+        begin
+          p url
+          agent = Mechanize.new
+          agent.get(url)
+          p agent.page.title
+          s.post_comment(message['channel_name'], TITLE_MSG + " " + agent.page.title)
+        rescue
+          p ERROR_SITE_MSG
+          #s.post_comment(message['channel_name'], ERROR_SITE_MSG)
+          next
+        end
+
+        # はてブする
+        success, link = post_hatebu(setting["oauth"], url)
+        if success then
+          s.post_comment(message['channel_name'], SUCCESS_MSG + " " + link)
+        end
+      end
     end
-    
-    # NGワードだったら抜ける
-    if exist_ngword?(setting['ngword'], message['body']) then
-      s.post_comment(message['channel_name'], ERROR_NGWORD_MSG)
-      next
-    end
-  
-    # 取得できないサイトだったら抜ける
-    begin
-      p url
-      agent = Mechanize.new
-      agent.get(url)
-      p agent.page.title
-      s.post_comment(message['channel_name'], TITLE_MSG + " " + agent.page.title)
-    rescue
-      s.post_comment(message['channel_name'], ERROR_SITE_MSG)
-      next
-    end
-    
-    # はてブする
-    success, link = post_hatebu(setting["oauth"], url)
-    if success then
-      s.post_comment(message['channel_name'], SUCCESS_MSG + " " + link)
-    end
+  rescue
   end
+  sleep(3)
 end

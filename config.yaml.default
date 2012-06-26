@@ -11,5 +11,6 @@ oauth:
 ngword:
   - google
   - yahoo
+  - b.hatena.ne.jp
 
   

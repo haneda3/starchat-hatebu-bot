@@ -32,5 +32,5 @@ def post_hatebu(oauth_def, url)
   return true, link_url
 end
 
-setting = YAML.load_file('./config.yaml')
+setting = YAML.load_file(File.dirname(__FILE__) + '/config.yaml')
 post_hatebu(setting["oauth"], "http://www.google.com/")
